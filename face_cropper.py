@@ -66,7 +66,7 @@ def expand_to_head(x, y, w, h, img_w, img_h):
     Tuned constants for typical portrait images.
     """
     scale_w = 1.6
-    scale_h = 2.6
+    scale_h = 2.3
     shift_up = 0.10
 
     cx = x + w / 2
