@@ -117,7 +117,7 @@ try:
 
         if len(faces) == 0:
             skipped += 1
-            print("skipped" + str(img_path))
+            print("skipped " + str(img_path))
             skip_list.append(str(img_path))
             continue
         progress = processed + skipped
@@ -147,7 +147,9 @@ except Exception as e:
     print(e)
 
 print(f"Finished cropping photos. Processed: {processed}, Skipped: {skipped}")
-print(f"Skipped files: {skip_list}")
+print("Skipped files:")
+for s in skip_list:
+    print(s, sep="\n")
 
 try:
     print(f"Continuing to review in 5...")
