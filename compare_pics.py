@@ -6,8 +6,8 @@ Inputs:
 - ORIGINALS_DIR: directory containing original images
 
 How it matches files:
-- Assumes cropped filenames end with "_head" before the extension,
-  e.g. "person1_head.jpg" corresponds to original "person1.jpg".
+- Assumes cropped filenames end with "_crop" before the extension,
+  e.g. "person1_crop.jpg" corresponds to original "person1.jpg".
 - Preserves relative paths under the root directories.
 
 Controls:
@@ -24,42 +24,22 @@ Outputs:
 from pathlib import Path
 import csv
 import cv2
+import tkinter as tk
+from tkinter.filedialog import askdirectory
 
-
-# ----------------------------
-# User input (only what is needed)
-# ----------------------------
-
-ORIGINALS_DIR = Path(input("Enter ORIGINALS directory path: ").strip().strip('"'))
-CROPS_DIR = Path(input("Enter CROPS directory path: ").strip().strip('"'))
-OUTPUT_DIR = Path(input("Enter OUTPUT directory path for review_results.csv: ").strip().strip('"'))
-
-if not ORIGINALS_DIR.is_dir():
-    raise ValueError("ORIGINALS_DIR does not exist or is not a directory.")
-if not CROPS_DIR.is_dir():
-    raise ValueError("CROPS_DIR does not exist or is not a directory.")
-
-OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
-CSV_PATH = OUTPUT_DIR / "review_results.csv"
 
 IMAGE_EXTS = {".jpg", ".jpeg", ".png", ".bmp", ".tif", ".tiff", ".webp"}
 
 
-def find_original_from_cropped(cropped_path: Path) -> Path | None:
-    """
-    Map:
-      CROPS_DIR/sub/abc_head.jpg -> ORIGINALS_DIR/sub/abc.jpg
-    """
-    rel = cropped_path.relative_to(CROPS_DIR)
+def find_original_from_cropped(cropped_path: Path, crops_dir: Path, originals_dir: Path) -> Path | None:
+    rel = cropped_path.relative_to(crops_dir)
     stem = rel.stem
     if stem.endswith("_crop"):
         orig_stem = stem[:-5]
     else:
-        orig_stem = stem  # fallback
-    candidate = (ORIGINALS_DIR / rel.parent / (orig_stem + rel.suffix))
-    return candidate if candidate.exists() else None
-
-
+        orig_stem = stem
+    candidate = originals_dir / rel.parent / (orig_stem + rel.suffix)
+    return candidate if candidate.exists() else Non
 def resize_to_fit(img, max_w=1400, max_h=900):
     h, w = img.shape[:2]
     scale = min(max_w / w, max_h / h, 1.0)
@@ -125,9 +105,25 @@ def iter_crops(crops_root: Path):
 
 
 def main():
+
+    tk.Tk().withdraw()  # part of the import if you are not using other tkinter functions
+    print("Choose ORIGINALS folder.")
+    original_dir = Path(askdirectory())
+    print("Choose CROPS folder.")
+    crops_dir = Path(askdirectory())
+    print("Choose OUTPUT folder for review_results.csv")
+    output_dir = Path(askdirectory())
+    if not original_dir.is_dir():
+        raise ValueError("ORIGINALS_DIR does not exist or is not a directory.")
+    if not crops_dir.is_dir():
+        raise ValueError("CROPS_DIR does not exist or is not a directory.")
+
+    output_dir.mkdir(parents=True, exist_ok=True)
+    CSV_PATH = output_dir / "review_results.csv"
+
     rows = []
 
-    crop_files = list(iter_crops(CROPS_DIR))
+    crop_files = list(iter_crops(crops_dir))
     if not crop_files:
         raise FileNotFoundError("No cropped images found in CROPS_DIR.")
 
@@ -140,13 +136,13 @@ def main():
                 decided[r["cropped_path"]] = r["decision"]
 
     for cropped_path in crop_files:
-        cropped_key = str(cropped_path.relative_to(CROPS_DIR))
+        cropped_key = str(cropped_path.relative_to(crops_dir))
 
         # Skip already decided
         if cropped_key in decided:
             continue
 
-        original_path = find_original_from_cropped(cropped_path)
+        original_path = find_original_from_cropped(cropped_path, crops_dir, original_dir)
         if original_path is None:
             # record missing original
             rows.append({
@@ -161,7 +157,7 @@ def main():
         if orig is None or crop is None:
             rows.append({
                 "cropped_path": cropped_key,
-                "original_path": str(original_path.relative_to(ORIGINALS_DIR)),
+                "original_path": str(original_path.relative_to(original_dir)),
                 "decision": "read_error",
             })
             continue
@@ -179,21 +175,21 @@ def main():
             if k == ord("a"):
                 rows.append({
                     "cropped_path": cropped_key,
-                    "original_path": str(original_path.relative_to(ORIGINALS_DIR)),
+                    "original_path": str(original_path.relative_to(original_dir)),
                     "decision": "accept",
                 })
                 break
             if k == ord("r"):
                 rows.append({
                     "cropped_path": cropped_key,
-                    "original_path": str(original_path.relative_to(ORIGINALS_DIR)),
+                    "original_path": str(original_path.relative_to(original_dir)),
                     "decision": "reject",
                 })
                 break
             if k == ord("s"):
                 rows.append({
                     "cropped_path": cropped_key,
-                    "original_path": str(original_path.relative_to(ORIGINALS_DIR)),
+                    "original_path": str(original_path.relative_to(original_dir)),
                     "decision": "skip",
                 })
                 break
@@ -208,6 +204,94 @@ def main():
     cv2.destroyAllWindows()
     write_results(rows, CSV_PATH, decided)
 
+
+def comparison_tool(original_dir, crops_dir, decision_dir):
+
+    decision_dir.mkdir(parents=True, exist_ok=True)
+    CSV_PATH = decision_dir / "review_results.csv"
+
+    rows = []
+
+    crop_files = list(iter_crops(crops_dir))
+    if not crop_files:
+        raise FileNotFoundError("No cropped images found in CROPS_DIR.")
+
+    # If CSV already exists, load previous decisions so we can resume
+    decided = {}
+    if CSV_PATH.exists():
+        with CSV_PATH.open("r", newline="", encoding="utf-8") as f:
+            reader = csv.DictReader(f)
+            for r in reader:
+                decided[r["cropped_path"]] = r["decision"]
+
+    for cropped_path in crop_files:
+        cropped_key = str(cropped_path.relative_to(crops_dir))
+
+        # Skip already decided
+        if cropped_key in decided:
+            continue
+
+        original_path = find_original_from_cropped(cropped_path, crops_dir, original_dir)
+        if original_path is None:
+            # record missing original
+            rows.append({
+                "cropped_path": cropped_key,
+                "original_path": "",
+                "decision": "missing_original",
+            })
+            continue
+
+        orig = cv2.imread(str(original_path))
+        crop = cv2.imread(str(cropped_path))
+        if orig is None or crop is None:
+            rows.append({
+                "cropped_path": cropped_key,
+                "original_path": str(original_path.relative_to(original_dir)),
+                "decision": "read_error",
+            })
+            continue
+
+        view = make_side_by_side(orig, crop)
+        cv2.imshow("Review (Original | Cropped)", view)
+
+        while True:
+            k = cv2.waitKey(0) & 0xFF
+            if k in (27, ord("q")):  # ESC or q
+                cv2.destroyAllWindows()
+                # write any buffered rows and exit
+                write_results(rows, CSV_PATH, decided)
+                return
+            if k == ord("a"):
+                rows.append({
+                    "cropped_path": cropped_key,
+                    "original_path": str(original_path.relative_to(original_dir)),
+                    "decision": "accept",
+                })
+                break
+            if k == ord("r"):
+                rows.append({
+                    "cropped_path": cropped_key,
+                    "original_path": str(original_path.relative_to(original_dir)),
+                    "decision": "reject",
+                })
+                break
+            if k == ord("s"):
+                rows.append({
+                    "cropped_path": cropped_key,
+                    "original_path": str(original_path.relative_to(original_dir)),
+                    "decision": "skip",
+                })
+                break
+
+        cv2.destroyWindow("Review (Original | Cropped)")
+
+        # Periodically flush to disk (so you can stop any time)
+        if len(rows) >= 25:
+            write_results(rows, CSV_PATH, decided)
+            rows.clear()
+
+    cv2.destroyAllWindows()
+    write_results(rows, CSV_PATH, decided)
 
 def write_results(new_rows, csv_path: Path, decided_dict):
     # Merge with already-decided rows
