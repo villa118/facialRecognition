@@ -28,9 +28,19 @@ def ask_input_output():
     root.attributes("-topmost", True)
     root.update()
     tkinter.messagebox.showinfo(title="input", message="Choose input (un-cropped pictures) folder.")
-    input_dir = Path(askdirectory())
+    input_dir = askdirectory(initialdir=".")
+    if not input_dir:
+        tk.messagebox.showinfo("Exiting...", "Selection cancelled, exiting.")
+        exit(0)
+    else:
+        input_dir = Path(input_dir)
     tkinter.messagebox.showinfo(title="output", message="Choose output (where to save cropped pictures) folder.")
-    output_dir = Path(askdirectory())
+    output_dir = askdirectory(initialdir=".")
+    if not output_dir:
+        tk.messagebox.showinfo("Exiting...", "Selection cancelled, exiting.")
+        exit(0)
+    else:
+        output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
     return input_dir, output_dir
 
@@ -79,11 +89,13 @@ def create_progress_window(root, total, title="Cropping progress"):
 
     return win, bar, label_var
 
+
 def update_progress(win, bar, label_var, current, total):
     bar["value"] = current
     label_var.set(f"{current} / {total}")
     win.update_idletasks()
     win.update()
+
 
 def clamp(val, low, high):
     return max(low, min(high, val))
@@ -188,12 +200,11 @@ def process_images(root, input_dir, output_dir):
     )
 
 
-
 def review_cropped_image(input_dir, output_dir):
     try:
         tk.messagebox.askokcancel("Review", "When ready to review cropped images, click 'OK'")
         tk.messagebox.showinfo("Choose Folder", "Choose directory to save review decisions.")
-        decision = Path(askdirectory())
+        decision = Path(askdirectory(initialdir="."))
         tk.messagebox.showinfo("Comparison", "Initializing comparison.")
         compare_pics.comparison_tool(original_dir=input_dir, crops_dir=output_dir, decision_dir=decision)
 
