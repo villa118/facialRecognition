@@ -13,7 +13,7 @@ from tkinter.filedialog import askdirectory
 import tkinter.messagebox
 from tkinter import ttk
 import compare_pics
-import time
+
 
 # ----------------------------
 # Helper functions
@@ -146,7 +146,7 @@ def process_images(root, input_dir, output_dir):
 
     if total == 0:
         tk.messagebox.showerror("Error", "No images found.")
-        return
+        exit(1)
 
     win, bar, label_var = create_progress_window(root, total)
 
