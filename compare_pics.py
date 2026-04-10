@@ -176,7 +176,7 @@ def comparison_tool(original_dir, crops_dir, decision_dir):
                 cv2.destroyAllWindows()
                 # write any buffered rows and exit
                 write_results(rows, CSV_PATH, decided)
-                return
+                exit(0)
             if k == ord("a"):
                 rows.append({
                     "cropped_path": cropped_key,

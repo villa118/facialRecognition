@@ -1,3 +1,4 @@
+#!C:\Users\Tyler.Villalobos\face_cropper\Scripts\activate.bat
 """
 Defaults:
 - Uses Haar cascade frontal face detector
@@ -27,15 +28,15 @@ def ask_input_output():
     root.withdraw()
     root.attributes("-topmost", True)
     root.update()
-    tkinter.messagebox.showinfo(title="input", message="Choose input (un-cropped pictures) folder.")
-    input_dir = askdirectory(initialdir=".")
+    tkinter.messagebox.showinfo(title="Face Cropper", message="Choose input (un-cropped pictures) folder.")
+    input_dir = askdirectory(title="Choose input folder",initialdir=".")
     if not input_dir:
         tk.messagebox.showinfo("Exiting...", "Selection cancelled, exiting.")
         exit(0)
     else:
         input_dir = Path(input_dir)
-    tkinter.messagebox.showinfo(title="output", message="Choose output (where to save cropped pictures) folder.")
-    output_dir = askdirectory(initialdir=".")
+    tkinter.messagebox.showinfo(title="Face Cropper", message="Choose output (where to save cropped pictures) folder.")
+    output_dir = askdirectory(title="Choose output folder", initialdir=".")
     if not output_dir:
         tk.messagebox.showinfo("Exiting...", "Selection cancelled, exiting.")
         exit(0)
@@ -107,8 +108,8 @@ def expand_to_head(x, y, w, h, img_w, img_h):
     Tuned constants for typical portrait images.
     """
     scale_w = 1.6
-    scale_h = 2.3
-    shift_up = 0.10
+    scale_h = 1.7
+    shift_up = 0.05
 
     cx = x + w / 2
     cy = y + h / 2 - (h * shift_up)
@@ -138,7 +139,7 @@ def process_images(root, input_dir, output_dir):
     skip_list = []
 
     img_files = [
-        p for p in input_dir.rglob("*")
+        p for p in input_dir.glob("*")
         if p.is_file() and p.suffix.lower() in IMAGE_EXTS
     ]
 
@@ -157,20 +158,22 @@ def process_images(root, input_dir, output_dir):
             img = cv2.imread(str(img_path))
             if img is None:
                 skipped += 1
+                print(f"Skipped: {str(img_path)}")
                 update_progress(win, bar, label_var, idx, total)
                 continue
 
             gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
             faces = face_cascade.detectMultiScale(
                 gray,
-                scaleFactor=1.1,
-                minNeighbors=5,
-                minSize=(60, 60)
+                scaleFactor=1.2,
+                minNeighbors=4,
+                minSize=(55, 55)
             )
 
             if len(faces) == 0:
                 skipped += 1
                 skip_list.append(str(img_path))
+                print(f"Skipped: {str(img_path)}")
                 update_progress(win, bar, label_var, idx, total)
                 continue
 
@@ -189,6 +192,8 @@ def process_images(root, input_dir, output_dir):
                 processed += 1
             else:
                 skipped += 1
+                print(f"Skipped: {str(img_path)}")
+
 
             update_progress(win, bar, label_var, idx, total)
 
@@ -202,7 +207,10 @@ def process_images(root, input_dir, output_dir):
 
 def review_cropped_image(input_dir, output_dir):
     try:
-        tk.messagebox.askokcancel("Review", "When ready to review cropped images, click 'OK'")
+        ans = tk.messagebox.askokcancel("Review", "When ready to review cropped images, click 'OK'")
+        if not ans:
+            print("Review Cancelled.")
+            exit(1)
         tk.messagebox.showinfo("Choose Folder", "Choose directory to save review decisions.")
         decision = Path(askdirectory(initialdir="."))
         tk.messagebox.showinfo("Comparison", "Initializing comparison.")
@@ -227,6 +235,7 @@ def main():
     root.withdraw()
     input_dir, output_dir = ask_input_output()
     process_images(root, input_dir, output_dir)
+
     review_cropped_image(input_dir, output_dir)
 
 
